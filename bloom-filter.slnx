@@ -1,0 +1,8 @@
+<Solution>
+  <Folder Name="/src/">
+    <Project Path="src/Clast.BloomFilter/Clast.BloomFilter.csproj" />
+  </Folder>
+  <Folder Name="/test/">
+    <Project Path="test/Clast.BloomFilter.Tests/Clast.BloomFilter.Tests.csproj" />
+  </Folder>
+</Solution>
