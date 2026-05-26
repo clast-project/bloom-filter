@@ -1,6 +1,7 @@
 // Copyright (c) clast-project. All rights reserved.
 // Licensed under the Apache License, Version 2.0. See LICENSE in the project root for license information.
 
+using System.Buffers;
 using System.Runtime.CompilerServices;
 
 namespace Clast.BloomFilter;
@@ -30,4 +31,32 @@ public sealed class BloomFilter<T>
     /// <summary>Tests whether <paramref name="value"/> might be present.</summary>
     [MethodImpl(MethodImplOptions.AggressiveInlining)]
     public bool MightContain(T value) => _inner.MightContainHash(_hash.Hash(value));
+
+    /// <summary>
+    /// Probes many values at once, writing one result per value to
+    /// <paramref name="results"/>. Hashing is done up front so the probes run as
+    /// a tight, unrolled batch (see
+    /// <see cref="SplitBlockBloomFilter.MightContainHash(ReadOnlySpan{ulong}, Span{bool})"/>).
+    /// </summary>
+    public void MightContain(ReadOnlySpan<T> values, Span<bool> results)
+    {
+        if (results.Length < values.Length)
+            throw new ArgumentException(
+                "Results span must be at least as long as the values span.", nameof(results));
+
+        int n = values.Length;
+        if (n == 0) return;
+
+        ulong[] hashes = ArrayPool<ulong>.Shared.Rent(n);
+        try
+        {
+            for (int i = 0; i < n; i++)
+                hashes[i] = _hash.Hash(values[i]);
+            _inner.MightContainHash(hashes.AsSpan(0, n), results);
+        }
+        finally
+        {
+            ArrayPool<ulong>.Shared.Return(hashes);
+        }
+    }
 }

@@ -83,7 +83,7 @@ internal static class SbbfBlock
     // ───────────────────── AVX2 (x86-64, 8 lanes) ─────────────────────
 
     [MethodImpl(MethodImplOptions.AggressiveInlining)]
-    private static bool BlockProbeAvx2(byte[] data, int blockOffset, uint key)
+    internal static bool BlockProbeAvx2(byte[] data, int blockOffset, uint key)
     {
         var keyVec = Vector256.Create(key);
         var products = Avx2.MultiplyLow(keyVec, SaltVector256);
@@ -93,13 +93,15 @@ internal static class SbbfBlock
         ref byte blockRef = ref data[blockOffset];
         var block = Vector256.LoadUnsafe(ref Unsafe.As<byte, uint>(ref blockRef));
 
-        var test = Vector256.BitwiseAnd(block, masks);
-        var isSet = Vector256.Equals(test, masks);
-        return isSet.Equals(Vector256<uint>.AllBitsSet);
+        // Present iff all 8 mask bits are set in the block: (block & masks) == masks
+        // on every lane. EqualsAll collapses the all-lanes reduction into a single
+        // compare+test the JIT lowers efficiently, rather than a two-step
+        // Vector256.Equals followed by an AllBitsSet comparison.
+        return Vector256.EqualsAll(Vector256.BitwiseAnd(block, masks), masks);
     }
 
     [MethodImpl(MethodImplOptions.AggressiveInlining)]
-    private static void BlockInsertAvx2(byte[] data, int blockOffset, uint key)
+    internal static void BlockInsertAvx2(byte[] data, int blockOffset, uint key)
     {
         var keyVec = Vector256.Create(key);
         var products = Avx2.MultiplyLow(keyVec, SaltVector256);
@@ -121,7 +123,7 @@ internal static class SbbfBlock
     // the ARM vshlq_u32 instruction.
 
     [MethodImpl(MethodImplOptions.AggressiveInlining)]
-    private static bool BlockProbeNeon(byte[] data, int blockOffset, uint key)
+    internal static bool BlockProbeNeon(byte[] data, int blockOffset, uint key)
     {
         ref byte blockRef = ref data[blockOffset];
 
@@ -134,7 +136,7 @@ internal static class SbbfBlock
     }
 
     [MethodImpl(MethodImplOptions.AggressiveInlining)]
-    private static void BlockInsertNeon(byte[] data, int blockOffset, uint key)
+    internal static void BlockInsertNeon(byte[] data, int blockOffset, uint key)
     {
         ref byte blockRef = ref data[blockOffset];
 
@@ -159,9 +161,8 @@ internal static class SbbfBlock
         ref uint wordRef = ref Unsafe.As<byte, uint>(ref blockRef);
         var block = Vector128.LoadUnsafe(ref wordRef);
 
-        var test = Vector128.BitwiseAnd(block, masks);
-        var isSet = Vector128.Equals(test, masks);
-        return isSet.Equals(Vector128<uint>.AllBitsSet);
+        // (block & masks) == masks across all four lanes of this half.
+        return Vector128.EqualsAll(Vector128.BitwiseAnd(block, masks), masks);
     }
 
     [MethodImpl(MethodImplOptions.AggressiveInlining)]
@@ -182,7 +183,7 @@ internal static class SbbfBlock
     // ───────────────────── Scalar fallback ─────────────────────
 
     [MethodImpl(MethodImplOptions.AggressiveInlining)]
-    private static bool BlockProbeScalar(byte[] data, int blockOffset, uint key)
+    internal static bool BlockProbeScalar(byte[] data, int blockOffset, uint key)
     {
         var salt = Salt;
         for (int i = 0; i < WordsPerBlock; i++)
@@ -197,7 +198,7 @@ internal static class SbbfBlock
     }
 
     [MethodImpl(MethodImplOptions.AggressiveInlining)]
-    private static void BlockInsertScalar(byte[] data, int blockOffset, uint key)
+    internal static void BlockInsertScalar(byte[] data, int blockOffset, uint key)
     {
         var salt = Salt;
         for (int i = 0; i < WordsPerBlock; i++)

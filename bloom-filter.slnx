@@ -5,4 +5,7 @@
   <Folder Name="/test/">
     <Project Path="test/Clast.BloomFilter.Tests/Clast.BloomFilter.Tests.csproj" />
   </Folder>
+  <Folder Name="/bench/">
+    <Project Path="bench/Clast.BloomFilter.Benchmarks/Clast.BloomFilter.Benchmarks.csproj" />
+  </Folder>
 </Solution>
